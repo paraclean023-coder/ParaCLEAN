@@ -10,19 +10,19 @@ The pipeline is:
 - **Modular** – enable or disable steps as needed.
 - **Configurable** – control all behaviour via a YAML config file.
 - **Reproducible** – consistent outputs for large-scale experiments.
-- **Scalable** – runs on laptops or HPC clusters with optional parallelisation.
+- **Scalable** – simple to adapt for parallelisation in an HPC environment.
 
 ---
 
 ## Features
 
-- **Input handling**: Read corpora in plain text (`.txt`) or tab-separated (`.tsv`) formats.
+- **Input handling**: Read corpora in plain text (`.txt`), tab-separated (`.tsv`) or translation memory (`.tmx`) formats.
 - **Embeddings**: Compute multilingual sentence embeddings (e.g. LaBSE, SONAR).
-- **Language ID**: Detect and filter sentences by language.
-- **Filtering**: Filter by embedding scores, sentence ratios, and language probability.
+- **Language ID**: Calculate probability that segments are in the desired language.
+- **Filtering**: Filter by embedding scores and language probability.
 - **Deduplication**: Remove duplicate sentence pairs and fuzzy matches across corpora.
 - **Bifixer**: Apply any of bifixer's functionality. Default is to ignore deduplication and segmentation.
-- **Normalisation**: Standardise punctuation, spacing, and casing.
+- **Normalisation**: Standardise punctuation, spacing, and casing. Includes easy-to extend language specific normalisation.
 
 ---
 
@@ -39,7 +39,7 @@ The pipeline is:
 Clone the repository and set up a virtual environment:
 
 ```bash
-git clone https://github.com/langtech-bsc/ParaCLEAN
+git clone https://github.com/paraclean023-coder/ParaCLEAN
 cd ParaClean
 python -m venv venv
 source venv/bin/activate   # or venv\Scripts\activate on Windows
@@ -54,6 +54,10 @@ python pipeline.py --config config_multi.yaml
 
 ## Configuration
 
+The pipeline supports both single-corpus and multi-corpus runs.
+
+- In single runs, one input corpus passes through all selected steps sequentially.
+- In multi-corpus runs, several corpora are at first processed individually through the scoring steps, then **merged** for filtering, deduplication and normalisation.
 The pipeline is configured via a YAML file. Example config files are provided for both single and multi file inputs. Below is a single file example:
 
 ```yaml
@@ -71,7 +75,7 @@ l2: "de"
 
 # Embedding model (choices: labse, sonar if downloaded)
 model: "labse"
-model_path: null   # optional, if you want to point to a local model path
+model_path: null   # optional, if you want to point to a local model path.
 
 # Filtering thresholds
 alignment_score: 0.75
@@ -88,10 +92,57 @@ steps:
   - bifixer
   - normalise
 
+#Optional Bifixer flags. More info can be found at  https://github.com/bitextor/bifixer
+bifixer_flags: ["--ignore_segmentation", "--ignore_duplicates"]
+
 # Input corpus (single)
 input: ["data-storage/Europarl.es-de.es", "data-storage/Europarl.es-de.de"]
-format: "plain_text"  # or "tsv"
+format: "plain_text"  # or "tsv" or "tmx"
 ```
+### Multi-corpus configuration
+
+In a multi-corpus setup, each dataset runs its own *per-corpus steps* (input, embeddings, langid) before being merged for the later *merged steps* (filter, dedup, bifixer, normalise).  
+This allows consistent filtering and deduplication across corpora.
+
+Example:
+```yaml
+# ===========================
+# Pipeline configuration file
+# Example: multi-corpus run
+# ===========================
+
+output: "testing/multi"
+
+l1: "Catalan"
+l2: "cmn_Hani"
+
+model: "labse"
+model_path: null
+
+alignment_score: 0.75
+langid_l1_prob: 0.5
+langid_l2_prob: 0.5
+
+steps:
+  - filter
+  - dedup
+  - bifixer
+  - normalise
+
+bifixer_flags: ["--ignore_segmentation", "--ignore_duplicates"]
+
+inputs:
+  - name: "TED2020"
+    type: "plain_text"
+    start_from: "testing/multi/TED2020.embeddings.tsv"
+    steps: ["langid"]
+
+  - name: "QED"
+    type: "plain_text"
+    start_from: "testing/multi/QED.embeddings.tsv"
+    steps: ["langid"]
+```
+
 ## Pipeline Steps
 **input** Preprocesses and normalises the raw input format.
 
@@ -99,17 +150,34 @@ format: "plain_text"  # or "tsv"
 
 **langid** Runs language identification to remove sentences in the wrong language.
 
-**filter** Applies heuristics and thresholds (e.g. length ratios, embedding similarity, language ID confidence).
+**filter** Applies thresholds (embedding similarity, language ID confidence).
 
 **dedup** Removes duplicate or near-duplicate sentence pairs.
 
-**bifixer** Integrates bifixer functionality. Default: no deduplication/segmentation. Requires an existing installation of bifixer
+**bifixer** Integrates bifixer functionality. Recommended: no deduplication/segmentation. Requires an existing installation of bifixer
 
-**normalise** Applies lightweight normalisation to punctuation, casing, etc.
+**normalise** Applies lightweight normalisation to punctuation, text encoding, etc.
 
 ## Outputs
 
-Each step writes intermediate files under the desginated output directory.
+Each processing step writes its output as a `.tsv` file in the designated output directory.  
+Intermediate files are named according to their step (e.g. `Europarl.embeddings.tsv`, `Europarl.langid.tsv`, etc.).
+
+The **final output** (from the `normalise` step) contains four columns:
+1. Source language (original)
+2. Target language (original)
+3. Source language (normalised)
+4. Target language (normalised)
+
+## Language Identifiers
+
+Language inputs can be specified in multiple formats. The pipeline automatically resolves these to the correct internal representation.  
+The following examples are all equivalent for Catalan:
+  - Catalan
+  - ca
+  - ca_Latn
+  - cat
+
 
 ## Notes & Caveats
 
