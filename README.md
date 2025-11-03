@@ -17,8 +17,8 @@ The pipeline is:
 ## Features
 
 - **Input handling**: Read corpora in plain text (`.txt`), tab-separated (`.tsv`) or translation memory (`.tmx`) formats.
-- **Embeddings**: Compute multilingual sentence embeddings (e.g. LaBSE (default), SONAR (can be added)).
-- **Language ID**: Calculate probability that segments are in the desired language (uses GlotLID).
+- **Embeddings**: Compute multilingual sentence embeddings (e.g. LaBSE (default), SONAR (can optionally be added)).
+- **Language ID**: Calculate probability that segments are in the desired language (using GlotLID).
 - **Filtering**: Filter by user-defined embedding scores and language probability thresholds.
 - **Deduplication**: Remove duplicate sentence pairs and fuzzy matches across corpora.
 - **Bifixer**: Apply any of Bifixer's functionality. Default is to ignore deduplication and segmentation.
