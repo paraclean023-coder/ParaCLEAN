@@ -51,14 +51,17 @@ Run the pipeline with a configuration file:
 ```bash
 python pipeline.py --config config_multi.yaml
 ```
+Progress and outputs are logged to the console.
+Each step writes intermediate `.tsv` files to the specified output directory.
 
 ## Configuration
 
-The pipeline supports both single-corpus and multi-corpus runs.
+The pipeline supports both **single-corpus** and **multi-corpus** runs.
 
-- In single runs, one input corpus passes through all selected steps sequentially.
-- In multi-corpus runs, several corpora are at first processed individually through the scoring steps, then **merged** for filtering, deduplication and normalisation.
-The pipeline is configured via a YAML file. Example config files are provided for both single and multi file inputs. Below is a single file example:
+- **Single-corpus** runs: one corpus passes sequentially through all selected steps.
+- **Multi-corpus** runs: several corpora are processed individually up to the scoring steps, then **merged** for filtering, deduplication, and normalisation.
+
+### Example: Single-Corpus Run
 
 ```yaml
 # ===========================
@@ -99,12 +102,8 @@ bifixer_flags: ["--ignore_segmentation", "--ignore_duplicates"]
 input: ["data-storage/Europarl.es-de.es", "data-storage/Europarl.es-de.de"]
 format: "plain_text"  # or "tsv" or "tmx"
 ```
-### Multi-corpus configuration
+### Example: Multi-Corpus Run
 
-In a multi-corpus setup, each dataset runs its own *per-corpus steps* (input, embeddings, langid) before being merged for the later *merged steps* (filter, dedup, bifixer, normalise).  
-This allows consistent filtering and deduplication across corpora.
-
-Example:
 ```yaml
 # ===========================
 # Pipeline configuration file
@@ -142,28 +141,35 @@ inputs:
     start_from: "testing/multi/QED.embeddings.tsv"
     steps: ["langid"]
 ```
+Each corpus runs its own per-corpus steps (`input`, `embeddings`, `langid`) before merging.
+The merged dataset then passes through `filter`, `dedup`, `bifixer`, and `normalise`.
 
 ## Pipeline Steps
-**input** Preprocesses and normalises the raw input format.
+**input** Reads and normalises the raw input format.
 
-**embeddings** Computes sentence embeddings for later filtering.
+**embeddings** Computes sentence embeddings for filtering.
 
-**langid** Runs language identification to remove sentences in the wrong language.
+**langid** Runs language identification on both sides.
 
-**filter** Applies thresholds (embedding similarity, language ID confidence).
+**filter** Applies thresholds for similarity and language probability.
 
-**dedup** Removes duplicate or near-duplicate sentence pairs.
+**dedup** Removes exact and near-duplicate sentence pairs.
 
-**bifixer** Integrates bifixer functionality. Recommended: no deduplication/segmentation. Requires an existing installation of bifixer
+**bifixer** Runs optional Bifixer cleaning (requires Bifixer installed).
 
-**normalise** Applies lightweight normalisation to punctuation, text encoding, etc.
+**normalise** Applies final punctuation and spacing normalisation.
 
 ## Outputs
 
-Each processing step writes its output as a `.tsv` file in the designated output directory.  
-Intermediate files are named according to their step (e.g. `Europarl.embeddings.tsv`, `Europarl.langid.tsv`, etc.).
+Each step writes a .tsv file in the specified output directory.
+Intermediate files are named after their processing step, e.g.:
+```yaml
+Europarl.embeddings.tsv
+Europarl.langid.tsv
+Europarl.filtered.tsv
+```
 
-The **final output** (from the `normalise` step) contains four columns:
+The **final output** (after `normalise`) contains four columns:
 1. Source language (original)
 2. Target language (original)
 3. Source language (normalised)
@@ -171,8 +177,8 @@ The **final output** (from the `normalise` step) contains four columns:
 
 ## Language Identifiers
 
-Language inputs can be specified in multiple formats. The pipeline automatically resolves these to the correct internal representation.  
-The following examples are all equivalent for Catalan:
+Language codes can be specified flexibly and are resolved internally. 
+The following are equivalent for Catalan:
   - Catalan
   - ca
   - ca_Latn
@@ -191,20 +197,26 @@ Extensibility: filtering and normalisation rules can be customised by editing th
 
 To add a new processing step:
 
-1. Create a module in steps/.
-2. Define a function with a consistent interface.
-3. Register it in pipeline.py.
+1. Create a module in steps/ e.g. `steps/my_step.py`).
+2. Define a function with a consistent interface (`input_path`, `output_path`, etc.).
+3.Register it in `pipeline.py` within the `step_fns` dictionary.
+
+Example:
+```python
+"my_step": lambda p: my_step.run(current, p + ".my_step.tsv", l1, l2)
+```
 
 ## License
-
+This project is released under the MIT License
+You are free to use, modify, and distribute it with attribution.
 
 ## Citation
 
-```bibtex
-@software{translation_pipeline,
-  author = {Your Name},
-  title = {Translation Data Processing Pipeline},
-  year = {2025},
-  url = {https://github.com/<your-repo>}
-}
-```
+
+## Acknowledgements
+This project builds upon components and concepts from:
+
+- [Bifixer](https://github.com/bitextor/bifixer)
+- [LaBSE](https://huggingface.co/sentence-transformers/LaBSE)
+- [SONAR](https://github.com/facebookresearch/SONAR)
+- [GlotLID](https://github.com/cisnlp/GlotLID)
