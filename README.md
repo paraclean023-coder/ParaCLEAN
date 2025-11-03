@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project provides a modular pipeline for preparing parallel corpora for machine translation research.\
+This project provides a modular pipeline for preparing parallel sentence-level corpora for machine translation research.\
 It standardises preprocessing across datasets, making it easier to train and evaluate translation models on consistent, high-quality data.
 
 The pipeline is:
@@ -17,11 +17,11 @@ The pipeline is:
 ## Features
 
 - **Input handling**: Read corpora in plain text (`.txt`), tab-separated (`.tsv`) or translation memory (`.tmx`) formats.
-- **Embeddings**: Compute multilingual sentence embeddings (e.g. LaBSE, SONAR).
-- **Language ID**: Calculate probability that segments are in the desired language.
-- **Filtering**: Filter by embedding scores and language probability.
+- **Embeddings**: Compute multilingual sentence embeddings (e.g. LaBSE (default), SONAR (can be added)).
+- **Language ID**: Calculate probability that segments are in the desired language (uses GlotLID).
+- **Filtering**: Filter by user-defined embedding scores and language probability thresholds.
 - **Deduplication**: Remove duplicate sentence pairs and fuzzy matches across corpora.
-- **Bifixer**: Apply any of bifixer's functionality. Default is to ignore deduplication and segmentation.
+- **Bifixer**: Apply any of Bifixer's functionality. Default is to ignore deduplication and segmentation.
 - **Normalisation**: Standardise punctuation, spacing, and casing. Includes easy-to extend language specific normalisation.
 
 ---
@@ -61,6 +61,21 @@ The pipeline supports both **single-corpus** and **multi-corpus** runs.
 - **Single-corpus** runs: one corpus passes sequentially through all selected steps.
 - **Multi-corpus** runs: several corpora are processed individually up to the scoring steps, then **merged** for filtering, deduplication, and normalisation.
 
+## Pipeline Steps
+**input** Reads and normalises the raw input format.
+
+**embeddings** Computes sentence embeddings for filtering.
+
+**langid** Runs language identification on both sides.
+
+**filter** Applies thresholds for similarity and language probability.
+
+**dedup** Removes exact and near-duplicate sentence pairs.
+
+**bifixer** Runs optional Bifixer cleaning (requires Bifixer installed).
+
+**normalise** Applies final punctuation and spacing normalisation.
+
 ### Example: Single-Corpus Run
 
 ```yaml
@@ -95,7 +110,7 @@ steps:
   - bifixer
   - normalise
 
-#Optional Bifixer flags. More info can be found at  https://github.com/bitextor/bifixer
+# Optional Bifixer flags. More info can be found at  https://github.com/bitextor/bifixer
 bifixer_flags: ["--ignore_segmentation", "--ignore_duplicates"]
 
 # Input corpus (single)
@@ -144,21 +159,6 @@ inputs:
 Each corpus runs its own per-corpus steps (`input`, `embeddings`, `langid`) before merging.
 The merged dataset then passes through `filter`, `dedup`, `bifixer`, and `normalise`.
 
-## Pipeline Steps
-**input** Reads and normalises the raw input format.
-
-**embeddings** Computes sentence embeddings for filtering.
-
-**langid** Runs language identification on both sides.
-
-**filter** Applies thresholds for similarity and language probability.
-
-**dedup** Removes exact and near-duplicate sentence pairs.
-
-**bifixer** Runs optional Bifixer cleaning (requires Bifixer installed).
-
-**normalise** Applies final punctuation and spacing normalisation.
-
 ## Outputs
 
 Each step writes a .tsv file in the specified output directory.
@@ -199,7 +199,7 @@ To add a new processing step:
 
 1. Create a module in steps/ e.g. `steps/my_step.py`).
 2. Define a function with a consistent interface (`input_path`, `output_path`, etc.).
-3.Register it in `pipeline.py` within the `step_fns` dictionary.
+3. Register it in `pipeline.py` within the `step_fns` dictionary.
 
 Example:
 ```python
