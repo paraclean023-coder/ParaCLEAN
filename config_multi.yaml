@@ -37,7 +37,7 @@ inputs:
   - name: "TED2020"
     type: "plain_text"
     # paths: ["testing/TED2020.ca-zh.ca", "testing/TED2020.ca-zh.zh"]
-    start_from: /gpfs/scratch/bsc88/bsc088400/ParaCLEAN/testing/multi/TED2020.embeddings.tsv
+    start_from: ""
     steps: ["langid"]
 
   - name: "QED"
